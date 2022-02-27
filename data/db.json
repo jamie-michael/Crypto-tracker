@@ -1,5 +1,12 @@
 {
-    "coins": [
-        
-    ]
+  "coins": [
+    {
+      "coinGeckoID": "ethereum",
+      "id": 1
+    },
+    {
+      "coinGeckoID": "solana",
+      "id": 2
+    }
+  ]
 }

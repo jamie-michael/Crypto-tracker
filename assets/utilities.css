@@ -1,13 +1,28 @@
+.btn {
+  border-radius: 5px;
+  font-weight: bold;
+  padding: 0.5rem 1.5em;
+  margin: 0 0.5rem;
+  cursor: pointer;
+} .btn:hover {
+  opacity: 80%;
+}
+
+.btn-primary {
+  background: #36a0fc;
+  color: #212833;
+} 
+
 
 /* ==================== Grid system (flex) ======================= */
-.grid {
+.flex-item {
     display: flex;
     justify-content: center;
     align-items: center;
     text-align: center;
   }
   
-  .grid-column {
+  .flex-item--column {
     flex-direction: column;
   }
   
