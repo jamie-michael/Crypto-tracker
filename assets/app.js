@@ -1,3 +1,5 @@
+import animateCSS from "./UI/animateCSS.js";
+
 const btn = document.querySelector('.search-button');
 const searchInput = document.querySelector('.search-input');
 
@@ -12,6 +14,7 @@ let marketList = document.querySelector('.market-list');
 
 const marketNavBtn = document.querySelector('.market-nav--btn');
 const trackerNavBtn = document.querySelector('.tracker-nav--btn');
+
 
 let searchTimeout = false;
 let databaseTimeout = false;
@@ -48,23 +51,7 @@ const intToString = (num) => {
 	);
 };
 
-const animateCSS = (element, animation, prefix = 'animate__' ) =>
-	// We create a Promise and return it
-	new Promise((resolve, reject) => {
-		const animationName = `${prefix}${animation}`;
-		const node = element;
 
-		node.classList.add(`${prefix}animated`, animationName);
-
-		// When the animation ends, we clean the classes and resolve the Promise
-		function handleAnimationEnd(event) {
-			event.stopPropagation();
-			node.classList.remove(`${prefix}animated`, animationName);
-			resolve('Animation ended');
-		}
-
-		node.addEventListener('animationend', handleAnimationEnd, { once: true });
-	});
 
 const closeSearchInputBtnHandler = () => {
 	hideSearchResults();
@@ -104,21 +91,21 @@ const toggleBackdrop = (opacity) => {
 
 const addItemToDatabase = async (coinGeckoID) => {
 	const coin = { coinGeckoID };
-	await fetch('http://localhost:8000/coins', {
+	await fetch('https://coin-tracker101.herokuapp.com/coins/', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify(coin),
 	});
-	console.log(coin);
 };
+
 
 const deleteFromTrackerHandler = async (coinGeckoID) => {
 	await fetchDatabase(true);
+ 
+	const coin = databaseCache.find((el) => el.coinGeckoID === coinGeckoID);
 
-	const coin = databaseCache.filter((el) => el.coinGeckoID === coinGeckoID);
-	console.log(coin[0]);
 
-	await fetch('http://localhost:8000/coins/' + coin[0].id, {
+	await fetch('https://coin-tracker101.herokuapp.com/coins/' + coin._id, {
 		method: 'DELETE',
 	});
 	updateTrackerListUI();
@@ -126,12 +113,14 @@ const deleteFromTrackerHandler = async (coinGeckoID) => {
 
 const updateTrackerListUI = async () => {
 	await fetchDatabase(true);
-	await fetchCGCoinData();
-	const data = await fetchTrackerData();
-	trackerList.innerHTML = outputTrackerListHTML(data);
-	console.log(data);
-	addTrackerElementLogic(trackerList);
-	console.log(trackerList);
+	if (databaseCache.length === 0) {
+		trackerList.innerHTML = '<div class="no-coins flex-item flex-item--column"><img src="./img/no-coins1.png" alt=""><p>You\'re empty. Add come coins!</p></div>';
+	} else {
+		await fetchCGCoinData();
+		const data = await fetchTrackerData();
+		trackerList.innerHTML = outputTrackerListHTML(data);
+		addTrackerElementLogic();
+	}
 };
 
 const updateMarketListUI = async () => {
@@ -153,9 +142,9 @@ const addColorToPercentageIncrease = (el) => {
 	}
 };
 
-const addTrackerElementLogic = (list) => {
-	list.childNodes.forEach((el) => {
-		const id = el.getAttribute('cgid');
+const addTrackerElementLogic = () => {
+	trackerList.childNodes.forEach((el) => {
+		const id = el.getAttribute('cgid'); 
 
 		// add delete element event listeners
 		const deleteElementBtn = el.querySelector('.delete-btn');
@@ -196,13 +185,6 @@ const addMarketElementLogic = (list) => {
 		const removeAddToTrackedEventListener = () => {
 			el.removeEventListener('click');
 		};
-		const poo = `${
-			isCoinBeingTracked(el.id)
-				? '<i class="fa-solid fa-star remove-from-tracker--btn"></i>'
-				: '<i class="fa-regular fa-star add-to-tracker--btn"></i>'
-		}`;
-		// add add-to-tracker event listeners
-		const addToTrackerBtn = el.querySelector('.add-to-tracker--btn');
 
 		if (isCoinBeingTracked(el.getAttribute('cg-id'))) {
 			const icon = el.querySelector('.track').childNodes[0];
@@ -211,6 +193,7 @@ const addMarketElementLogic = (list) => {
 			icon.addEventListener('click', toggleStaredHandler);
 			icon.el = el;
 			icon.icon = icon;
+			
 		} else {
 			const icon = el.querySelector('.track').childNodes[0];
 			icon.addEventListener('click', toggleStaredHandler);
@@ -314,9 +297,8 @@ const fetchDatabase = async (overrideTimeout) => {
 	if (databaseTimeout && !overrideTimeout) return databaseCache;
 
 	databaseTimeout = true;
-	console.log('fetching DB');
 
-	const res = await fetch('http://localhost:8000/coins');
+	const res = await fetch('https://coin-tracker101.herokuapp.com/coins/');
 	databaseCache = await res.json();
 
 	// stop FetchSerachData from fetching for a set period of time.
@@ -340,18 +322,30 @@ const isCoinBeingTracked = (id) => {
 
 const addCoinToTrackerHandler = async (el) => {
 	const CGID = el.getAttribute('cg-id');
-	console.log(CGID);
 
 	const tracked = isCoinBeingTracked(CGID);
 	if (!tracked) {
 		await addItemToDatabase(CGID);
 		await animateCSS(el, 'fadeOutRight');
 		updateTrackerListUI();
+		// const marketEl = marketList.find(el => el.getAttribute('cg-id') === CGID)
+		const marketEl = marketList.childNodes.forEach(el => {
+			const id = el.getAttribute('cg-id');
+			if (id === CGID) {
+				el.childNodes.forEach(el2 => {
+					if (el2.nodeType !== 3 && el2.classList.contains('track')) {
+						toggleStar(el2.childNodes[0]);
+					}
+				})
+				
+				
+			}
+		});
+		
 		if (backdrop.classList.contains('show')) {
 			backdropHandler();
 		}
 	} else {
-		console.log('coin already tracked');
 		animateCSS(el, 'headShake');
 	}
 };
@@ -364,7 +358,6 @@ const fetchCGCoinData = async (overrideTimeout) => {
 	let currentPage = 0;
 
 	while (currentPage <= 2) {
-		console.log('fetching...');
 
 		currentPage++;
 		const response = await fetch(
@@ -444,8 +437,8 @@ const outputSearchHTML = (matches) => {
 const trackerNavBtnHandler = async () => {
 	if (trackerList.classList.contains('show')) return;
 	trackerList.innerHTML = loadingSpinner;
-	marketList.classList.toggle('show');
-	trackerList.classList.toggle('show');
+	marketList.classList.remove('show');
+	trackerList.classList.add('show');
 	trackerNavBtn.classList.toggle('active');
 	marketNavBtn.classList.toggle('active');
 	await updateTrackerListUI();
@@ -454,8 +447,8 @@ const trackerNavBtnHandler = async () => {
 const marketNavBtnHandler = async () => {
 	if (marketList.classList.contains('show')) return;
 	marketList.innerHTML = loadingSpinner;
-	marketList.classList.toggle('show');
-	trackerList.classList.toggle('show');
+	marketList.classList.add('show');
+	trackerList.classList.remove('show');
 	marketNavBtn.classList.toggle('active');
 	trackerNavBtn.classList.toggle('active');
 	await updateMarketListUI();
